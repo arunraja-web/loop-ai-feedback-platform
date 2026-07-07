@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  ANALYST
+  VIEWER
+}
+
+enum FeedbackStatus {
+  NEW
+  REVIEWED
+  ACTIONED
+}
+
+enum Sentiment {
+  POSITIVE
+  NEGATIVE
+  NEUTRAL
+}
+
+enum FeedbackChannel {
+  SURVEY
+  EMAIL
+  APP_REVIEW
+  SUPPORT
+  SOCIAL_MEDIA
+  OTHER
+}
+
+model Workspace {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users      User[]
+  feedbacks  Feedback[]
+  themes     Theme[]
+  reports    Report[]
+  embeddings Embedding[]
+}
+
+model User {
+  id       String @id @default(cuid())
+  name     String
+  email    String @unique
+  password String
+
+  role Role @default(VIEWER)
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  feedbacks Feedback[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Feedback {
+  id String @id @default(cuid())
+
+  title   String
+  content String
+
+  channel   FeedbackChannel @default(OTHER)
+  sentiment Sentiment?
+  status    FeedbackStatus  @default(NEW)
+
+  customerName  String?
+  customerEmail String?
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  themes FeedbackTheme[]
+
+  embedding Embedding?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([status])
+  @@index([sentiment])
+}
+
+model Theme {
+  id String @id @default(cuid())
+
+  name        String
+  description String?
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  feedbacks FeedbackTheme[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FeedbackTheme {
+  id String @id @default(cuid())
+
+  feedbackId String
+  themeId    String
+
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  theme    Theme    @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@unique([feedbackId, themeId])
+}
+
+model Report {
+  id String @id @default(cuid())
+
+  title   String
+  summary String @db.Text
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Embedding {
+  id String @id @default(cuid())
+
+  feedbackId String   @unique
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  vector String @db.Text
+
+  createdAt DateTime @default(now())
+}
